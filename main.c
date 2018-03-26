@@ -606,7 +606,7 @@ void LSD() {
 			char in = getkeypressed();
 			if (in == '\b') {
 				fname[strlen(fname)-1] = 0;
-			} else if(in != '\n' && (int)(sizeof(fname)-(11+8)-strlen(fname)) <= 0) {
+			} else if(in != '\n' && (int)(sizeof(fname)-(11+8)-strlen(fname)) > 0) {
 				fname[strlen(fname)] = in;
 			}
 		}
