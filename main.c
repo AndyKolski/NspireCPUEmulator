@@ -14,6 +14,9 @@ int memoffset = 0;
 int ShowOps = 0;
 int ShowHex = 1;
 int speedratio = 5;
+uint lastTime = 0;
+int lastINum = 0;
+int ips = 0;
 
 Uint32 CWhite;
 Uint32 CBlack;
@@ -37,6 +40,11 @@ unsigned char Creg = 0;
 unsigned char MIreg = 0;
 unsigned char MOreg = 0;
 unsigned char retaddress = 0;
+
+uint getTime() {
+	uint *time = (uint *)0x90090000;
+	return *time;
+}
 
 char * OPtoName(uint op) {
 	switch(op) {
@@ -221,13 +229,14 @@ void initScreen() {
 }
 int pcnum = 0;
 int mrinum = 1;
+int ipsnum = 2;
 
-int anum = 3;
-int bnum = 4;
-int cnum = 5;
-int minum = 6;
-int monum = 7;
-int onum = 8;
+int anum = 4;
+int bnum = 5;
+int cnum = 6;
+int minum = 7;
+int monum = 8;
+int onum = 9;
 
 int spdnum = 16;
 int stepnum = 17;
@@ -293,8 +302,10 @@ void displayScreen() {
 			} else {
 				nSDL_DrawString(screen, font, width/2+25, 25+(i*10), "PC:0x%x", pc);
 			}
-		} if (i == mrinum) {
+		} else if (i == mrinum) {
 			nSDL_DrawString(screen, font, width/2+25, 25+(i*10), "MRI:%s", OPtoName(memoryOCs[pc]));
+		} else if (i == ipsnum) {
+			nSDL_DrawString(screen, font, width/2+25, 25+(i*10), "IPS:%i", ips);
 		} else if (i == stepnum) {
 			nSDL_DrawString(screen, font, width/2+25, 25+(i*10), "Step");
 		} else if (i == togglenum) {
@@ -485,12 +496,13 @@ void step() {
 			running = 0;
 			pc = 0;
 			break;
-		default:
+		default: //??
 			running = 0;
 			pc = 0;
 			break;
 		}
 		displayScreen();
+		lastINum++;
 }
 
 int not(int in) {
@@ -551,7 +563,7 @@ void DispMSG(char* msg) {
 	wait_key_pressed();
 	while (isKeyPressed(KEY_NSPIRE_ENTER));
 }
-char fname[50+11+4];
+char fname[50+11+8];
 void LSD() {
 	for (uint i = 0; i < sizeof(fname); ++i) {
 		fname[i] = 0;
@@ -585,7 +597,7 @@ void LSD() {
 		while (!isKeyPressed(KEY_NSPIRE_ENTER) && sizeof(fname) > 1) {
 			clearScreen();
 			fillRect(5, 5, 4*7, 8, CWhite);
-			nSDL_DrawString(screen, font, 5, 5, "File Name: (%i remaining)\n%s.bin", sizeof(fname)-strlen(fname)-13, fname);
+			nSDL_DrawString(screen, font, 5, 5, "File Name: (%i remaining)\n%s.bin", sizeof(fname)-strlen(fname)-(11+8), fname);
 			SDL_Flip(screen);
 			if (isKeyPressed(KEY_NSPIRE_ESC)) {
 				while (isKeyPressed(KEY_NSPIRE_ESC));
@@ -594,7 +606,7 @@ void LSD() {
 			char in = getkeypressed();
 			if (in == '\b') {
 				fname[strlen(fname)-1] = 0;
-			} else if(in != '\n' && sizeof(fname)-strlen(fname)-(11+4) < -1) {
+			} else if(in != '\n' && (int)(sizeof(fname)-(11+8)-strlen(fname)) <= 0) {
 				fname[strlen(fname)] = in;
 			}
 		}
@@ -602,7 +614,7 @@ void LSD() {
 
 		clearScreen();
 		fillRect(5, 5, 4*7, 8, CWhite);
-		nSDL_DrawString(screen, font, 5, 5, "\"%s.S\" OK? (Press [enter])",fname);
+		nSDL_DrawString(screen, font, 5, 5, "\"%s.bin\" OK? (Press [enter])",fname);
 		SDL_Flip(screen);
 		wait_key_pressed();
 		if (isKeyPressed(KEY_NSPIRE_ESC)) {
@@ -612,8 +624,8 @@ void LSD() {
 	}
 	while (isKeyPressed(KEY_NSPIRE_ENTER));
 
-	strncat (fname, ".bin", 4);
-	char buf[50+11+4] = "/documents/";
+	strncat (fname, ".bin.tns", 8);
+	char buf[50+11+8] = "/documents/";
 	strncat (buf, fname, 11);
 	strcpy(fname, buf);
 
@@ -655,6 +667,7 @@ int main(int argc, char *argv[]) {
 	{
 		memoryDT[i] = 0;
 	}
+	lastTime = getTime();
 	initScreen();
 	displayScreen();
 	uint p = 1; 
@@ -695,7 +708,7 @@ int main(int argc, char *argv[]) {
 				selectedx++;
 			while (isKeyPressed(KEY_NSPIRE_RIGHT));
 		} else if (isKeyPressed(KEY_NSPIRE_ENTER)) {
-			redraw = 1;
+			redraw = 0;
 			del = 0;
 			if (page == 1) {
 				if (selectedy == stepnum) {
@@ -710,35 +723,35 @@ int main(int argc, char *argv[]) {
 					speedratio = getint(3, p, speedratio);
 					if (speedratio == 0)
 						speedratio = 1;
-					displayScreen();
+					redraw = 1;
 				} else if (selectedy == pcnum) {
 					int p = 1;
 					if (isKeyPressed(KEY_NSPIRE_SHIFT)) {
 						p = not(p);
 					}
 					pc = getint(2, p, pc);
-					displayScreen();
+					redraw = 1;
 				} else if (selectedy == anum) {
 					int p = 1;
 					if (isKeyPressed(KEY_NSPIRE_SHIFT)) {
 						p = not(p);
 					}
 					Areg = getint(2, p, Areg);
-					displayScreen();
+					redraw = 1;
 				}  else if (selectedy == bnum) {
 					int p = 1;
 					if (isKeyPressed(KEY_NSPIRE_SHIFT)) {
 						p = not(p);
 					}
 					Breg = getint(2, p, Breg);
-					displayScreen();
+					redraw = 1;
 				} else if (selectedy == cnum) {
 					int p = 1;
 					if (isKeyPressed(KEY_NSPIRE_SHIFT)) {
 						p = not(p);
 					}
 					Creg = getint(2, p, Creg);
-					displayScreen();
+					redraw = 1;
 				}
 			} else {
 				if (selectedx == 0) {
@@ -748,19 +761,21 @@ int main(int argc, char *argv[]) {
 					}
 					memoffset = getint(2, p, memoffset);
 					selectedy = 0;
-					displayScreen();
+					redraw = 1;
 				} else if (selectedx == 1) {
 					int p = 1;
 					if (isKeyPressed(KEY_NSPIRE_SHIFT)) {
 						p = not(p);
 					}
 					memoryOCs[memoffset+selectedy] = getint(2, p, memoryOCs[memoffset+selectedy]);
+					redraw = 1;
 				} else {
 					int p = 1;
 					if (isKeyPressed(KEY_NSPIRE_SHIFT)) {
 						p = not(p);
 					}
 					memoryDT[memoffset+selectedy] = getint(2, p, memoryDT[memoffset+selectedy]);
+					redraw = 1;
 				}
 			}
 			while (isKeyPressed(KEY_NSPIRE_ENTER));
@@ -823,6 +838,11 @@ int main(int argc, char *argv[]) {
 		}
 		if (running == 1 && (p % speedratio == 1 || speedratio == 1)) {
 			step();
+			if (lastTime != getTime()) {
+				ips = lastINum;
+				lastINum = 0;
+				lastTime = getTime();
+			}
 		}
 	}
 	SDL_Quit();
